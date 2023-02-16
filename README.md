@@ -6,8 +6,9 @@ Only work with browser plugin [Tampermonkey](https://www.tampermonkey.net/).
 
 [GreasyFork Install](https://greasyfork.org/zh-CN/scripts/456049)
 
-- [x] you.com support
-- [ ] bing.com support (account still in waitlist)
+- [x] chat.openai.com
+- [x] you.com
+- [ ] bing.com (account still in waitlist)
 
 ## jupyter-notebook-auto-scroll.js
 [GreasyFork Install](https://greasyfork.org/zh-CN/scripts/418158)
