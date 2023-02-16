@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, you, bing, etc.)
 // @namespace          http://tampermonkey.net/
-// @version            0.3.5
+// @version            0.3.6
 // @author             Scruel
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, you, bing, etc.).
 // @description:zh-CN  自动渲染 ChatGPT 页面 (OpenAI, you, bing 等) 上的 LaTeX 数学公式。
 // @match              https://chat.openai.com/chat/*
-// @match              https://you.com/search?q=chatgpt*
+// @match              https://you.com/search?*&tbm=youchat*
 // @grant              none
 // ==/UserScript==
 
