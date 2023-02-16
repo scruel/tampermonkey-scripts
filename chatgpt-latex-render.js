@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, you, bing, etc.)
 // @namespace          http://tampermonkey.net/
-// @version            0.3.4
+// @version            0.3.5
 // @author             Scruel
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, you, bing, etc.).
@@ -56,7 +56,7 @@ function loadingCheckFn() {
             return commonCheck('main div[data-testid="youchat-input"] textarea+button');
         }
     }
-    if (window.location.host == 'openai.com') {
+    if (window.location.host == 'chat.openai.com') {
         window.isChatLoading = () => {
             return commonCheck('main form textarea+button');
         }
@@ -65,7 +65,7 @@ function loadingCheckFn() {
 
 function renderLatex() {
     if (window.isChatLoading()) {
-        console.log("Rendering...")
+        // console.log("Rendering...")
         MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
     }
     renderTrigger();
