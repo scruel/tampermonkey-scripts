@@ -103,7 +103,7 @@ function renderTrigger() {
 
 function renderLatex() {
     if (window._sc_isAnswerPrepared()) {
-        console.log("Rendering...")
+        // console.log("Rendering...")
         window._sc_typeset();
     }
     renderTrigger();
