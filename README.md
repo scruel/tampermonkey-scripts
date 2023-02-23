@@ -6,7 +6,7 @@ Only work with browser plugin [Tampermonkey](https://www.tampermonkey.net/).
 
 Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, you, bing, etc.).
 
-[GreasyFork Install](https://greasyfork.org/zh-CN/scripts/456049)
+[Install (GreasyFork)](https://greasyfork.org/zh-CN/scripts/456049)
 
 
 - [x] [chat.openai.com](https://chat.openai.com)
@@ -18,4 +18,4 @@ Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, you, bing, etc.).
 
 Add auto scroll to bottom funtion for jupyter notebook pages.
 
-[GreasyFork Install](https://greasyfork.org/zh-CN/scripts/418158)
+[Install (GreasyFork)](https://greasyfork.org/zh-CN/scripts/418158)
