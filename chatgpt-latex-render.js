@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, you, bing, etc.)
 // @namespace          http://tampermonkey.net/
-// @version            0.4.1
+// @version            0.4.2
 // @author             Scruel
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, you, bing, etc.).
@@ -13,6 +13,89 @@
 // ==/UserScript==
 
 'use strict';
+
+const _parsed_mark = '_sc_parsed';
+
+function queryAddNoParsed(query) {
+    return query + ":not([" + _parsed_mark + "])";
+}
+
+function prepareScript() {
+    window._sc_typeset = () => {
+        if (window._sc_typesetting) {
+            return;
+        }
+        window._sc_typesetting = true;
+        try {
+            const messages = window._sc_get_messages();
+            messages.forEach((element) => {
+                element.setAttribute(_parsed_mark,'');
+                MathJax.typesetPromise([element]);
+            });
+        } catch (ignore) {
+        }
+        window._sc_typesetting = false;
+    }
+
+    const commonCheck = (query) => {
+        const submitButton = document.querySelector(query);
+        return submitButton && !submitButton.disabled;
+    }
+
+    if (window.location.host == "www.bing.com") {
+        window._sc_get_messages = () => {
+            const elements = [];
+            const allChatTurn = document.querySelector("#b_sydConvCont > cib-serp").shadowRoot.querySelector("#cib-conversation-main").shadowRoot.querySelectorAll("#cib-chat-main > cib-chat-turn");
+            if (allChatTurn.length == 0) {
+                return;
+            }
+            const allCibMeg = allChatTurn[allChatTurn.length - 1].shadowRoot.querySelector("cib-message-group.response-message-group").shadowRoot.querySelectorAll("cib-message");
+            allCibMeg.forEach((cibMeg) => {
+                const element = cibMeg.shadowRoot.querySelector(queryAddNoParsed("cib-shared"));
+                if (element) {
+                    elements.append(element);
+                }
+            });
+            return elements;
+        }
+        window._sc_isAnswerPrepared = () => {
+            const actionBarParent = document.querySelector("#b_sydConvCont > cib-serp");
+            if (!actionBarParent) {
+                return false;
+            }
+            const actionBar = actionBarParent.shadowRoot.querySelector("#cib-action-bar-main");
+            return actionBar && !actionBar.hasAttribute('cancelable');
+        }
+    }
+    else if (window.location.host == "you.com") {
+        window._sc_get_messages = () => {
+            return [document.querySelectorAll(queryAddNoParsed('#chatHistory div[data-testid="youchat-answer"]'))];
+        }
+        window._sc_isAnswerPrepared = () => {
+            return commonCheck('main div[data-testid="youchat-input"] textarea+button');
+        }
+    }
+    else if (window.location.host == "chat.openai.com") {
+        window._sc_get_messages = () => {
+            return document.querySelectorAll(queryAddNoParsed("div.w-full div.text-base div.items-start"));
+        }
+        window._sc_isAnswerPrepared = () => {
+            return commonCheck('main form textarea+button');
+        }
+    }
+}
+
+function renderTrigger() {
+    setTimeout(renderLatex, window.renderDelay);
+}
+
+function renderLatex() {
+    if (window._sc_isAnswerPrepared()) {
+        // console.log("Rendering...")
+        window._sc_typeset();
+    }
+    renderTrigger();
+}
 
 async function addScript(url) {
     const scriptElement = document.createElement('script');
@@ -43,70 +126,6 @@ function waitScriptLoaded() {
       }
       resolver();
   });
-}
-
-function prepareLoadingCheckFn() {
-    window._sc_typeset = () => {
-        MathJax.typeset();
-    }
-    const commonCheck = (query) => {
-        const submitButton = document.querySelector(query);
-        return submitButton && !submitButton.disabled;
-    }
-
-    if (window.location.host == 'www.bing.com') {
-        window._sc_typeset = () => {
-            try {
-                const allChatTurn = document.querySelector("#b_sydConvCont > cib-serp").shadowRoot.querySelector("#cib-conversation-main").shadowRoot.querySelectorAll("#cib-chat-main > cib-chat-turn");
-                if (allChatTurn.length == 0) {
-                    return;
-                }
-                const allCibMeg = allChatTurn[allChatTurn.length - 1].shadowRoot.querySelector("cib-message-group.response-message-group").shadowRoot.querySelectorAll("cib-message");
-                allCibMeg.forEach((cibMeg) => {
-                    const element = cibMeg.shadowRoot.querySelector("cib-shared");
-                    const mathjaxElement = cibMeg.shadowRoot.querySelector("mjx-container");
-                    if (element && !mathjaxElement) {
-                        MathJax.typeset([element]);
-                    }
-                });
-            } catch (ignore) {
-            }
-        }
-        window._sc_isAnswerPrepared = () => {
-            const actionBarParent = document.querySelector("#b_sydConvCont > cib-serp");
-            if (!actionBarParent) {
-                return false;
-            }
-            const actionBar = actionBarParent.shadowRoot.querySelector("#cib-action-bar-main");
-            return actionBar && !actionBar.hasAttribute('cancelable');
-        }
-    }
-    // TODO: typeset only last dialog.
-    else if (window.location.host == 'you.com') {
-        window._sc_typeset = () => {
-            MathJax.typeset([document.querySelector("#chatHistory")]);
-        }
-        window._sc_isAnswerPrepared = () => {
-            return commonCheck('main div[data-testid="youchat-input"] textarea+button');
-        }
-    }
-    else if (window.location.host == 'chat.openai.com') {
-        window._sc_isAnswerPrepared = () => {
-            return commonCheck('main form textarea+button');
-        }
-    }
-}
-
-function renderTrigger() {
-    setTimeout(renderLatex, window.renderDelay);
-}
-
-function renderLatex() {
-    if (window._sc_isAnswerPrepared()) {
-        // console.log("Rendering...")
-        window._sc_typeset();
-    }
-    renderTrigger();
 }
 
 function setTipsElementText(text) {
@@ -145,7 +164,7 @@ function hideTipsElement(timeout=3) {
     setTipsElementText("MathJax Loaded.");
     hideTipsElement();
 
-    prepareLoadingCheckFn();
+    prepareScript();
     window.renderDelay = 1000;
     renderTrigger();
 })();
