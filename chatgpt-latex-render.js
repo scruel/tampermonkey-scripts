@@ -4,8 +4,8 @@
 // @version            0.4.2
 // @author             Scruel
 // @homepage           https://github.com/scruel/tampermonkey-scripts
-// @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, you, bing, etc.).
-// @description:zh-CN  自动渲染 ChatGPT 页面 (OpenAI, you, bing 等) 上的 LaTeX 数学公式。
+// @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
+// @description:zh-CN  自动渲染 ChatGPT 页面 (OpenAI, new bing, you 等) 上的 LaTeX 数学公式。
 // @match              https://chat.openai.com/*
 // @match              https://you.com/search?*&tbm=youchat*
 // @match              https://www.bing.com/search?*
