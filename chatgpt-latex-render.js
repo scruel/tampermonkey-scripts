@@ -69,7 +69,7 @@ function prepareScript() {
     }
     else if (window.location.host == "you.com") {
         window._sc_get_messages = () => {
-            return [document.querySelectorAll(queryAddNoParsed('#chatHistory div[data-testid="youchat-answer"]'))];
+            return document.querySelectorAll(queryAddNoParsed('#chatHistory div[data-testid="youchat-answer"]'));
         }
         window._sc_isAnswerPrepared = () => {
             return commonCheck('main div[data-testid="youchat-input"] textarea+button');
