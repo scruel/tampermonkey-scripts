@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, you, bing, etc.)
 // @namespace          http://tampermonkey.net/
-// @version            0.4.3
+// @version            0.4.4
 // @author             Scruel
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -21,16 +21,18 @@ function queryAddNoParsed(query) {
 }
 
 function prepareScript() {
+    window._sc_afterTypesetElement = (element) => {};
     window._sc_typeset = () => {
         if (window._sc_typesetting) {
             return;
         }
         window._sc_typesetting = true;
         try {
-            const messages = window._sc_get_messages();
+            const messages = window._sc_getMessages();
             messages.forEach((element) => {
                 element.setAttribute(_parsed_mark,'');
                 MathJax.typesetPromise([element]);
+                window._sc_afterTypesetElement(element);
             });
         } catch (ignore) {
         }
@@ -43,7 +45,7 @@ function prepareScript() {
     }
 
     if (window.location.host == "www.bing.com") {
-        window._sc_get_messages = () => {
+        window._sc_getMessages = () => {
             const elements = [];
             const allChatTurn = document.querySelector("#b_sydConvCont > cib-serp").shadowRoot.querySelector("#cib-conversation-main").shadowRoot.querySelectorAll("#cib-chat-main > cib-chat-turn");
             if (allChatTurn.length == 0) {
@@ -53,7 +55,6 @@ function prepareScript() {
             allCibMeg.forEach((cibMeg) => {
                 const element = cibMeg.shadowRoot.querySelector(queryAddNoParsed("cib-shared"));
                 if (element) {
-                    element.style.display = 'unset';
                     elements.append(element);
                 }
             });
@@ -69,7 +70,7 @@ function prepareScript() {
         }
     }
     else if (window.location.host == "you.com") {
-        window._sc_get_messages = () => {
+        window._sc_getMessages = () => {
             return document.querySelectorAll(queryAddNoParsed('#chatHistory div[data-testid="youchat-answer"]'));
         }
         window._sc_isAnswerPrepared = () => {
@@ -77,9 +78,10 @@ function prepareScript() {
         }
     }
     else if (window.location.host == "chat.openai.com") {
-        window._sc_get_messages = () => {
+        window._sc_getMessages = () => {
             return document.querySelectorAll(queryAddNoParsed("div.w-full div.text-base div.items-start"));
         }
+        window._sc_afterTypesetElement = (element) => { element.style.display = 'unset';}
         window._sc_isAnswerPrepared = () => {
             return commonCheck('main form textarea+button');
         }
