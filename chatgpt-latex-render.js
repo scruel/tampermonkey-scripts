@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, you, bing, etc.)
 // @namespace          http://tampermonkey.net/
-// @version            0.4.4
+// @version            0.4.5
 // @author             Scruel
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -55,7 +55,7 @@ function prepareScript() {
             allCibMeg.forEach((cibMeg) => {
                 const element = cibMeg.shadowRoot.querySelector(queryAddNoParsed("cib-shared"));
                 if (element) {
-                    elements.append(element);
+                    elements.push(element);
                 }
             });
             return elements;
