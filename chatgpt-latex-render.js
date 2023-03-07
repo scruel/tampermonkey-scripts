@@ -22,20 +22,14 @@ function queryAddNoParsed(query) {
 }
 
 async function prepareScript() {
+    window._sc_beforeTypesetMsg = (msg) => {};
     window._sc_typesetAfter = (element) => {};
     window._sc_typeset = () => {
         try {
-            const messages = window._sc_getMessages();
+            const messages = window._sc_getMsgEles();
             messages.forEach(msg => {
                 msg.setAttribute(_parsed_mark,'');
-                // Prevent conflict latex typeset (katex).
-                const katexEles = msg.querySelectorAll('.katex-display');
-                katexEles.forEach(e => {
-                    const mlEle = e.querySelector(".katex-mathml");
-                    e.parentElement.removeAttribute("class");
-                    e.parentElement.innerHTML = mlEle.innerHTML;
-                });
-                // Typeset latex.
+                window._sc_beforeTypesetMsg(msg);
                 MathJax.typesetPromise([msg]);
                 window._sc_typesetAfter(msg);
             });
@@ -58,7 +52,7 @@ async function prepareScript() {
             if (!ele) {return null;}
             return ele.shadowRoot.querySelector("#cib-action-bar-main");
         }
-        window._sc_getMessages = () => {
+        window._sc_getMsgEles = () => {
             try {
                 const allChatTurn = document.querySelector("#b_sydConvCont > cib-serp").shadowRoot.querySelector("#cib-conversation-main").shadowRoot.querySelectorAll("#cib-chat-main > cib-chat-turn");
                 const allCibMsgGroup = allChatTurn[allChatTurn.length - 1].shadowRoot.querySelectorAll("cib-message-group");
@@ -70,9 +64,18 @@ async function prepareScript() {
         }
     }
     else if (window.location.host == "chat.openai.com") {
-        window._sc_getMessages = () => {
+        window._sc_getMsgEles = () => {
             return document.querySelectorAll(queryAddNoParsed("div.w-full div.text-base div.items-start"));
         }
+        window._sc_beforeTypesetMsg = (msg) => {
+            // Prevent latex typeset conflict
+            const displayEles = msg.querySelectorAll('.math-display');
+            displayEles.forEach(e => {
+                const texEle = e.querySelector(".katex-mathml annotation");
+                e.removeAttribute("class");
+                e.textContent = texEle.textContent;
+            });
+        };
         window._sc_getObserveElement = () => {
             return document.querySelector("main form textarea+button");
         }
@@ -93,7 +96,7 @@ async function prepareScript() {
         };
     }
     else if (window.location.host == "you.com") {
-        window._sc_getMessages = () => {
+        window._sc_getMsgEles = () => {
             return document.querySelectorAll(queryAddNoParsed('#chatHistory div[data-testid="youchat-answer"]'));
         }
         window._sc_getObserveElement = () => {
