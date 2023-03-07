@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, you, new bing, etc.)
 // @namespace          http://tampermonkey.net/
-// @version            0.5.0
+// @version            0.5.1
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -26,6 +26,7 @@ async function prepareScript() {
         try {
             const messages = window._sc_getMessages();
             messages.forEach(msg => {
+                msg.setAttribute(_parsed_mark,'');
                 // Prevent conflict latex typeset (katex).
                 const katexEles = msg.querySelectorAll('.katex-display');
                 katexEles.forEach(e => {
@@ -34,7 +35,6 @@ async function prepareScript() {
                     e.parentElement.innerHTML = mlEle.innerHTML;
                 });
                 // Typeset latex.
-                msg.setAttribute(_parsed_mark,'');
                 MathJax.typesetPromise([msg]);
                 window._sc_typesetAfter(msg);
             });
@@ -196,6 +196,9 @@ async function loadMathJax() {
         tex: {
             inlineMath: [['$', '$'], ['\\(', '\\)']],
             displayMath  : [['$$', '$$', ['\\[', '\\]']]]
+        },
+        startup: {
+            typeset: false
         }
     };
 
