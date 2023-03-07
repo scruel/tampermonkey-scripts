@@ -1,6 +1,5 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, you, new bing, etc.)
-// @namespace          http://tampermonkey.net/
 // @version            0.5.1
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
@@ -9,6 +8,8 @@
 // @match              https://chat.openai.com/*
 // @match              https://you.com/search?*&tbm=youchat*
 // @match              https://www.bing.com/search?*
+// @namespace          http://tampermonkey.net/
+// @icon               https://chat.openai.com/favicon.ico
 // @grant              none
 // @noframes
 // ==/UserScript==
