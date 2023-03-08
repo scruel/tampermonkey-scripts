@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, you, new bing, etc.)
-// @version            0.5.2
+// @version            0.5.3
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -52,12 +52,19 @@ async function prepareScript() {
             if (!ele) {return null;}
             return ele.shadowRoot.querySelector("#cib-action-bar-main");
         }
+        const getContMsgEles = (cont, isInChat=true) => {
+            const allChatTurn = cont.shadowRoot.querySelector("#cib-conversation-main").shadowRoot.querySelectorAll("cib-chat-turn");
+            var lastChatTurnSR = allChatTurn[allChatTurn.length - 1];
+            if (isInChat) { lastChatTurnSR = lastChatTurnSR.shadowRoot; }
+            const allCibMsgGroup = lastChatTurnSR.querySelectorAll("cib-message-group");
+            const allCibMsg = Array.from(allCibMsgGroup).map(e => Array.from(e.shadowRoot.querySelectorAll("cib-message"))).flatMap(e => e);
+            return Array.from(allCibMsg).map(cibMsg => cibMsg.shadowRoot.querySelector("cib-shared")).filter(e => e);
+        }
         window._sc_getMsgEles = () => {
             try {
-                const allChatTurn = document.querySelector("#b_sydConvCont > cib-serp").shadowRoot.querySelector("#cib-conversation-main").shadowRoot.querySelectorAll("#cib-chat-main > cib-chat-turn");
-                const allCibMsgGroup = allChatTurn[allChatTurn.length - 1].shadowRoot.querySelectorAll("cib-message-group");
-                const allCibMsg = Array.from(allCibMsgGroup).map(e => Array.from(e.shadowRoot.querySelectorAll("cib-message"))).flatMap(e => e);
-                return Array.from(allCibMsg).map(cibMsg => cibMsg.shadowRoot.querySelector("cib-shared")).filter(e => e);
+                const convCont = document.querySelector("#b_sydConvCont > cib-serp");
+                const tigerCont = document.querySelector("#b_sydTigerCont > cib-serp");
+                return getContMsgEles(convCont).concat(getContMsgEles(tigerCont, false));
             } catch (ignore) {
                 return [];
             }
