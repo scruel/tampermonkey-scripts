@@ -4,7 +4,7 @@ Only work with browser plugin [Tampermonkey](https://www.tampermonkey.net/).
 
 ## chatgpt-latex-render.js
 
-Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, you, bing, etc.).
+Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, you, new bing, etc.).
 
 [Install (GreasyFork)](https://greasyfork.org/zh-CN/scripts/456049)
 
