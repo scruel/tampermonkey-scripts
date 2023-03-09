@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, you, new bing, etc.)
-// @version            0.5.3
+// @version            0.5.4
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
 // @description:zh-CN  自动渲染 ChatGPT 页面 (OpenAI, new bing, you 等) 上的 LaTeX 数学公式。
 // @match              https://chat.openai.com/*
-// @match              https://you.com/search?*&tbm=youchat*
 // @match              https://www.bing.com/search?*
+// @match              https://you.com/search?*&tbm=youchat*
+// @match              https://www.you.com/search?*&tbm=youchat*
 // @namespace          http://tampermonkey.net/
 // @icon               https://chat.openai.com/favicon.ico
 // @grant              none
@@ -22,16 +23,15 @@ function queryAddNoParsed(query) {
 }
 
 async function prepareScript() {
-    window._sc_beforeTypesetMsg = (msg) => {};
-    window._sc_typesetAfter = (element) => {};
+    window._sc_beforeTypesetMsg = (msg) => { msg.setAttribute(_parsed_mark,'');};
+    window._sc_afterTypesetMsg = (element) => {};
     window._sc_typeset = () => {
         try {
             const messages = window._sc_getMsgEles();
             messages.forEach(msg => {
-                msg.setAttribute(_parsed_mark,'');
                 window._sc_beforeTypesetMsg(msg);
                 MathJax.typesetPromise([msg]);
-                window._sc_typesetAfter(msg);
+                window._sc_afterTypesetMsg(msg);
             });
         } catch (e) {
             console.warn(e);
@@ -43,15 +43,21 @@ async function prepareScript() {
         }
     };
     window._sc_chatLoaded = () => { return true; };
+    window._sc_getObserveElement = () => { return null; };
+    var observerOptions = {
+        attributeOldValue : true,
+        attributeFilter: ['cancelable', 'disabled'],
+    };
+    var afterMainOvservationStart = () => { window._sc_typeset(); };
 
-    var afterMainOvservationStart = () => {window._sc_typeset();};
-
+    // Handle special cases per site.
     if (window.location.host == "www.bing.com") {
         window._sc_getObserveElement = () => {
             const ele = document.querySelector("#b_sydConvCont > cib-serp");
             if (!ele) {return null;}
             return ele.shadowRoot.querySelector("#cib-action-bar-main");
         }
+
         const getContMsgEles = (cont, isInChat=true) => {
             const allChatTurn = cont.shadowRoot.querySelector("#cib-conversation-main").shadowRoot.querySelectorAll("cib-chat-turn");
             var lastChatTurnSR = allChatTurn[allChatTurn.length - 1];
@@ -71,22 +77,9 @@ async function prepareScript() {
         }
     }
     else if (window.location.host == "chat.openai.com") {
-        window._sc_getMsgEles = () => {
-            return document.querySelectorAll(queryAddNoParsed("div.w-full div.text-base div.items-start"));
-        }
-        window._sc_beforeTypesetMsg = (msg) => {
-            // Prevent latex typeset conflict
-            const displayEles = msg.querySelectorAll('.math-display');
-            displayEles.forEach(e => {
-                const texEle = e.querySelector(".katex-mathml annotation");
-                e.removeAttribute("class");
-                e.textContent = texEle.textContent;
-            });
-        };
         window._sc_getObserveElement = () => {
             return document.querySelector("main form textarea+button");
         }
-        window._sc_typesetAfter = (element) => { element.style.display = 'unset';}
         window._sc_chatLoaded = () => { return document.querySelector('main div.text-sm>svg.animate-spin') === null; };
 
         afterMainOvservationStart = () => {
@@ -101,20 +94,72 @@ async function prepareScript() {
                 });
             }).observe(document.querySelector('#__next'), {childList: true});
         };
+
+        window._sc_getMsgEles = () => {
+            return document.querySelectorAll(queryAddNoParsed("div.w-full div.text-base div.items-start"));
+        }
+
+        window._sc_beforeTypesetMsg = (msg) => {
+            msg.setAttribute(_parsed_mark,'');
+            // Prevent latex typeset conflict
+            const displayEles = msg.querySelectorAll('.math-display');
+            displayEles.forEach(e => {
+                const texEle = e.querySelector(".katex-mathml annotation");
+                e.removeAttribute("class");
+                e.textContent = texEle.textContent;
+            });
+        };
+        window._sc_afterTypesetMsg = (element) => { element.style.display = 'unset';}
     }
-    else if (window.location.host == "you.com") {
+    else if (window.location.host == "you.com" || window.location.host == "www.you.com") {
+        window._sc_getObserveElement = () => {
+            return document.querySelector('#chatHistory');
+        };
+        window._sc_chatLoaded = () => { return document.querySelector('#chatHistory div[data-pinnedconversationturnid]'); };
+
+        observerOptions = {
+            childList : true
+        };
+
+        window._sc_mutationHandler = (mutation) => {
+            mutation.addedNodes.forEach(e => {
+                const attr = e.getAttribute('data-testid')
+                if (attr && attr.startsWith("youchat-convTurn")) {
+                    startTurnAttrObservationForTypesetting(e, 'data-pinnedconversationturnid');
+                }
+            })
+        };
+
         window._sc_getMsgEles = () => {
             return document.querySelectorAll(queryAddNoParsed('#chatHistory div[data-testid="youchat-answer"]'));
-        }
-        window._sc_getObserveElement = () => {
-            return document.querySelector('main div[data-testid="youchat-input"] textarea+button');
-        }
+        };
     }
     console.log('Waiting for chat loading...')
     const mainElement = await getMainObserveElement();
     console.log('Chat loaded.')
-    startMainOvservation(mainElement);
+    startMainOvservation(mainElement, observerOptions);
     afterMainOvservationStart();
+}
+
+// After output completed, the attribute of turn element will be changed,
+// only with observer won't be enough, so we have this function for sure.
+function startTurnAttrObservationForTypesetting(element, doneWithAttr) {
+    const tmpObserver = new MutationObserver((mutationList, observer) => {
+        mutationList.forEach(mutation => {
+            if (mutation.oldValue === null) {
+                window._sc_typeset();
+                observer.disconnect;
+            }
+        })
+    });
+    tmpObserver.observe(element, {
+        attributeOldValue : true,
+        attributeFilter: [doneWithAttr],
+    });
+    if (element.hasAttribute(doneWithAttr)) {
+        window._sc_typeset();
+        tmpObserver.disconnect;
+    }
 }
 
 function getMainObserveElement(chatLoaded=false) {
@@ -130,11 +175,7 @@ function getMainObserveElement(chatLoaded=false) {
   });
 }
 
-async function startMainOvservation(mainElement) {
-    const observerOptions = {
-        attributeOldValue : true,
-        attributeFilter: ['cancelable', 'disabled'],
-    };
+function startMainOvservation(mainElement, observerOptions) {
     const callback = (mutationList, observer) => {
         mutationList.forEach(mutation => {
             window._sc_mutationHandler(mutation);
@@ -171,7 +212,7 @@ function showTipsElement() {
     const tipsElement = window._sc_ChatLatex.tipsElement;
     tipsElement.style.position = "fixed";
     tipsElement.style.left = "10px";
-    tipsElement.style.bottom = "10px";
+    tipsElement.style.top = "10px";
     tipsElement.style.background = '#333';
     tipsElement.style.color = '#fff';
     document.body.appendChild(tipsElement);
