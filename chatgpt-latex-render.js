@@ -216,7 +216,11 @@ function showTipsElement() {
     tipsElement.style.background = '#333';
     tipsElement.style.color = '#fff';
     tipsElement.style.zIndex = '999999';
-    document.body.appendChild(tipsElement);
+    var tipContainer = document.body.querySelector('header');
+    if (!tipContainer) {
+        tipContainer = document.body;
+    }
+    tipContainer.appendChild(tipsElement);
 }
 
 function setTipsElementText(text, errorRaise=false) {
