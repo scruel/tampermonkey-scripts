@@ -215,6 +215,7 @@ function showTipsElement() {
     tipsElement.style.top = "10px";
     tipsElement.style.background = '#333';
     tipsElement.style.color = '#fff';
+    tipsElement.style.zIndex = '999999';
     document.body.appendChild(tipsElement);
 }
 
