@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name               ChatGPT LaTeX Auto Render (OpenAI, you, new bing, etc.)
-// @version            0.5.7
+// @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
+// @version            0.5.8
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -19,20 +19,77 @@
 'use strict';
 
 const _parsed_mark = '_sc_parsed';
+const MARKDOWN_RERENDER_MARK = 'sc_mktag';
+const MARKDOWN_RERENDER_LEN = 'sc_mklen';
+const MARKDOWN_RERENDER_REGEX = new RegExp('<!--' + MARKDOWN_RERENDER_MARK + ',(.*?)-->', 'g');
+
 function queryAddNoParsed(query) {
     return query + ":not([" + _parsed_mark + "])";
 }
 
+function getAllCommentNodes(ele) {
+    var comments = [];
+    var iterator = document.createNodeIterator(ele, NodeFilter.SHOW_COMMENT, () => NodeFilter.FILTER_ACCEPT, false);
+    var curNode;
+    while (curNode = iterator.nextNode()) {
+        comments.push(curNode);
+    }
+    return comments;
+}
+
+function restoreMarkdown(msgEle, tagName, wrapperSymbol) {
+    const eles = msgEle.querySelectorAll(tagName);
+    eles.forEach(e => {
+        const restoredNodes = document.createRange().createContextualFragment(e.innerHTML);
+        const fn = restoredNodes.childNodes[0];
+        const ln = restoredNodes.childNodes[restoredNodes.childNodes.length - 1]
+        fn.textContent = wrapperSymbol + fn.textContent;
+        ln.textContent = ln.textContent + wrapperSymbol;
+        restoredNodes.prepend(document.createComment(MARKDOWN_RERENDER_MARK + ",<" + tagName + " " + MARKDOWN_RERENDER_LEN + "=" + wrapperSymbol.length + ">"));
+        restoredNodes.append(document.createComment(MARKDOWN_RERENDER_MARK + ",</" + tagName + ">"));
+        e.parentElement.insertBefore(restoredNodes, e);
+        e.parentNode.removeChild(e);
+    });
+}
+
+function restoreAllMarkdown(msgEle) {
+    restoreMarkdown(msgEle, 'em', '_');
+}
+
+function rerenderAllMarkdown(msgEle) {
+    const mjxEles = msgEle.querySelectorAll('mjx-container');
+    msgEle.innerHTML = msgEle.innerHTML.replaceAll(MARKDOWN_RERENDER_REGEX, '$1');
+    const eles = document.querySelectorAll('*[' + MARKDOWN_RERENDER_LEN + ']');
+    eles.forEach(e => {
+        const wrapperLen = parseInt(e.getAttribute(MARKDOWN_RERENDER_LEN))
+        e.childNodes[0].textContent = e.childNodes[0].textContent.substring(wrapperLen);
+        const lastNodeContent = e.childNodes[e.childNodes.length - 1].textContent
+        e.childNodes[e.childNodes.length - 1].textContent = lastNodeContent.substring(0, lastNodeContent.length - wrapperLen - 1);
+    });
+    // Restore mjx elements which have listeners
+    const newMjxEles = msgEle.querySelectorAll('mjx-container');
+    for (let i = 0; i < newMjxEles.length; ++i) {
+        const e = newMjxEles[i];
+        e.parentElement.insertBefore(mjxEles[i], e);
+        e.parentNode.removeChild(e);
+    };
+}
+
 async function prepareScript() {
-    window._sc_beforeTypesetMsg = (msg) => { msg.setAttribute(_parsed_mark,'');};
-    window._sc_afterTypesetMsg = (element) => {};
+    window._sc_beforeTypesetMsgEle = (msgEle) => {};
+    window._sc_afterTypesetMsgEle = (msgEle) => {};
     window._sc_typeset = () => {
         try {
-            const messages = window._sc_getMsgEles();
-            messages.forEach(msg => {
-                window._sc_beforeTypesetMsg(msg);
-                MathJax.typesetPromise([msg]);
-                window._sc_afterTypesetMsg(msg);
+            const msgEles = window._sc_getMsgEles();
+            msgEles.forEach(msgEle => {
+                restoreAllMarkdown(msgEle);
+                msgEle.setAttribute(_parsed_mark,'');
+
+                window._sc_beforeTypesetMsgEle(msgEle);
+                MathJax.typesetPromise([msgEle]);
+                window._sc_afterTypesetMsgEle(msgEle);
+
+                rerenderAllMarkdown(msgEle);
             });
         } catch (e) {
             console.warn(e);
@@ -103,17 +160,28 @@ async function prepareScript() {
             return document.querySelectorAll(queryAddNoParsed("div.w-full div.text-base div.items-start"));
         }
 
-        window._sc_beforeTypesetMsg = (msg) => {
-            msg.setAttribute(_parsed_mark,'');
+        window._sc_beforeTypesetMsgEle = (msgEle) => {
             // Prevent latex typeset conflict
-            const displayEles = msg.querySelectorAll('.math-display');
+            const displayEles = msgEle.querySelectorAll('.math-display');
             displayEles.forEach(e => {
                 const texEle = e.querySelector(".katex-mathml annotation");
                 e.removeAttribute("class");
                 e.textContent = "$$" + texEle.textContent + "$$";
             });
+            const inlineEles = msgEle.querySelectorAll('.math-inline');
+            inlineEles.forEach(e => {
+                const texEle = e.querySelector(".katex-mathml annotation");
+                e.removeAttribute("class");
+                // e.textContent = "$" + texEle.textContent + "$";
+                // Mathjax will typeset this with display mode.
+                e.textContent = "$$" + texEle.textContent + "$$";
+
+            });
         };
-        window._sc_afterTypesetMsg = (element) => { element.style.display = 'unset';}
+        window._sc_afterTypesetMsgEle = (msgEle) => {
+            // https://github.com/mathjax/MathJax/issues/3008
+            msgEle.style.display = 'unset';
+        }
     }
     else if (window.location.host == "you.com" || window.location.host == "www.you.com") {
         window._sc_getObserveElement = () => {
