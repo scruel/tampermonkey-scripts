@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
-// @version            0.5.9
+// @version            0.5.10
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -59,7 +59,7 @@ function restoreAllMarkdown(msgEle) {
 function rerenderAllMarkdown(msgEle) {
     const mjxEles = msgEle.querySelectorAll('mjx-container');
     msgEle.innerHTML = msgEle.innerHTML.replaceAll(MARKDOWN_RERENDER_REGEX, '$1');
-    const eles = document.querySelectorAll('*[' + MARKDOWN_RERENDER_LEN + ']');
+    const eles = msgEle.querySelectorAll('*[' + MARKDOWN_RERENDER_LEN + ']');
     eles.forEach(e => {
         const wrapperLen = parseInt(e.getAttribute(MARKDOWN_RERENDER_LEN))
         e.childNodes[0].textContent = e.childNodes[0].textContent.substring(wrapperLen);
