@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
-// @version            0.5.8
+// @version            0.5.9
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -64,7 +64,7 @@ function rerenderAllMarkdown(msgEle) {
         const wrapperLen = parseInt(e.getAttribute(MARKDOWN_RERENDER_LEN))
         e.childNodes[0].textContent = e.childNodes[0].textContent.substring(wrapperLen);
         const lastNodeContent = e.childNodes[e.childNodes.length - 1].textContent
-        e.childNodes[e.childNodes.length - 1].textContent = lastNodeContent.substring(0, lastNodeContent.length - wrapperLen - 1);
+        e.childNodes[e.childNodes.length - 1].textContent = lastNodeContent.substring(0, lastNodeContent.length - wrapperLen);
     });
     // Restore mjx elements which have listeners
     const newMjxEles = msgEle.querySelectorAll('mjx-container');
