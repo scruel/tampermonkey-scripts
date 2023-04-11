@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
-// @version            0.5.10
+// @version            0.5.11
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -143,6 +143,8 @@ async function prepareScript() {
         }
         window._sc_chatLoaded = () => { return document.querySelector('main div.text-sm>svg.animate-spin') === null; };
 
+        observerOptions = { childList : true };
+
         afterMainOvservationStart = () => {
             window._sc_typeset();
             // Handle conversation switch
@@ -154,6 +156,14 @@ async function prepareScript() {
                     }
                 });
             }).observe(document.querySelector('#__next'), {childList: true});
+        };
+
+        window._sc_mutationHandler = (mutation) => {
+            mutation.addedNodes.forEach(e => {
+                if (e.tagName === "svg") {
+                    window._sc_typeset();
+                }
+            })
         };
 
         window._sc_getMsgEles = () => {
@@ -235,16 +245,16 @@ function startTurnAttrObservationForTypesetting(element, doneWithAttr) {
 }
 
 function getMainObserveElement(chatLoaded=false) {
-  return new Promise(async (resolve, reject) => {
-      const resolver = () => {
-          const ele = window._sc_getObserveElement();
-          if (ele && (chatLoaded || window._sc_chatLoaded())) {
-              return resolve(ele);
-          }
-          window.setTimeout(resolver, 500);
-      }
-      resolver();
-  });
+    return new Promise(async (resolve, reject) => {
+        const resolver = () => {
+            const ele = window._sc_getObserveElement();
+            if (ele && (chatLoaded || window._sc_chatLoaded())) {
+                return resolve(ele);
+            }
+            window.setTimeout(resolver, 500);
+        }
+        resolver();
+    });
 }
 
 function startMainOvservation(mainElement, observerOptions) {
@@ -331,6 +341,6 @@ async function loadMathJax() {
         }
     };
 
-     await loadMathJax();
-     await prepareScript();
+    await loadMathJax();
+    await prepareScript();
 })();
