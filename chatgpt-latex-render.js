@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
-// @version            0.5.11
+// @version            0.6.0
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -23,6 +23,9 @@ const MARKDOWN_RERENDER_MARK = 'sc_mktag';
 const MARKDOWN_RERENDER_LEN = 'sc_mklen';
 const MARKDOWN_RERENDER_REGEX = new RegExp('<!--' + MARKDOWN_RERENDER_MARK + ',(.*?)-->', 'g');
 
+const MARKDOWN_SYMBOL_UNDERLINE = '@SCUEDL@'
+const MARKDOWN_SYMBOL_ASTERISK = '@SCAESK@'
+
 function queryAddNoParsed(query) {
     return query + ":not([" + _parsed_mark + "])";
 }
@@ -37,12 +40,67 @@ function getAllCommentNodes(ele) {
     return comments;
 }
 
-function restoreMarkdown(msgEle, tagName, wrapperSymbol) {
+async function addScript(url) {
+    const scriptElement = document.createElement('script');
+    const headElement = document.getElementsByTagName('head')[0] || document.documentElement;
+    if (!headElement.appendChild(scriptElement)) {
+        // Prevent appendChild overwritten problem.
+        headElement.append(scriptElement);
+    }
+    scriptElement.src = url;
+}
+
+function showTipsElement() {
+    const tipsElement = window._sc_ChatLatex.tipsElement;
+    tipsElement.style.position = "fixed";
+    tipsElement.style.right = "10px";
+    tipsElement.style.top = "10px";
+    tipsElement.style.background = '#333';
+    tipsElement.style.color = '#fff';
+    tipsElement.style.zIndex = '999999';
+    var tipContainer = document.body.querySelector('header');
+    if (!tipContainer) {
+        tipContainer = document.body;
+    }
+    tipContainer.appendChild(tipsElement);
+}
+
+function setTipsElementText(text, errorRaise=false) {
+    window._sc_ChatLatex.tipsElement.innerHTML = text;
+    if (errorRaise) {
+        throw text;
+    }
+    console.log(text);
+}
+
+function getExtraInfoAddedMKContent(content) {
+    content = content.replaceAll(/(\*+)/g, MARKDOWN_SYMBOL_ASTERISK + '$1');
+    content = content.replaceAll(/(_+)/g, MARKDOWN_SYMBOL_UNDERLINE + '$1');
+    // TODO: combined symbol
+    return content;
+}
+
+function getExtraInfoRemovedMKContent(content) {
+    content = content.replaceAll(MARKDOWN_SYMBOL_UNDERLINE, '');
+    content = content.replaceAll(MARKDOWN_SYMBOL_ASTERISK, '');
+    return content;
+}
+
+function getLastMKSymbol(ele, defaultSymbol) {
+    if (!ele) { return defaultSymbol; }
+    const content = ele.textContent;
+    if (content.endsWith(MARKDOWN_SYMBOL_UNDERLINE)) { return '_'; }
+    if (content.endsWith(MARKDOWN_SYMBOL_ASTERISK)) { return '*'; }
+    return defaultSymbol;
+}
+
+function restoreMarkdown(msgEle, tagName, defaultSymbol) {
     const eles = msgEle.querySelectorAll(tagName);
     eles.forEach(e => {
         const restoredNodes = document.createRange().createContextualFragment(e.innerHTML);
         const fn = restoredNodes.childNodes[0];
         const ln = restoredNodes.childNodes[restoredNodes.childNodes.length - 1]
+        const wrapperSymbol = getLastMKSymbol(e.previousSibling, defaultSymbol);
         fn.textContent = wrapperSymbol + fn.textContent;
         ln.textContent = ln.textContent + wrapperSymbol;
         restoredNodes.prepend(document.createComment(MARKDOWN_RERENDER_MARK + ",<" + tagName + " " + MARKDOWN_RERENDER_LEN + "=" + wrapperSymbol.length + ">"));
@@ -50,6 +108,7 @@ function restoreMarkdown(msgEle, tagName, wrapperSymbol) {
         e.parentElement.insertBefore(restoredNodes, e);
         e.parentNode.removeChild(e);
     });
+    msgEle.innerHTML = getExtraInfoRemovedMKContent(msgEle.innerHTML);
 }
 
 function restoreAllMarkdown(msgEle) {
@@ -109,7 +168,7 @@ async function prepareScript() {
     var afterMainOvservationStart = () => { window._sc_typeset(); };
 
     // Handle special cases per site.
-    if (window.location.host == "www.bing.com") {
+    if (window.location.host === "www.bing.com") {
         window._sc_getObserveElement = () => {
             const ele = document.querySelector("#b_sydConvCont > cib-serp");
             if (!ele) {return null;}
@@ -137,7 +196,7 @@ async function prepareScript() {
             }
         }
     }
-    else if (window.location.host == "chat.openai.com") {
+    else if (window.location.host === "chat.openai.com") {
         window._sc_getObserveElement = () => {
             return document.querySelector("main form textarea+button");
         }
@@ -193,15 +252,12 @@ async function prepareScript() {
             msgEle.style.display = 'unset';
         }
     }
-    else if (window.location.host == "you.com" || window.location.host == "www.you.com") {
+    else if (window.location.host === "you.com" || window.location.host === "www.you.com") {
         window._sc_getObserveElement = () => {
             return document.querySelector('#chatHistory');
         };
         window._sc_chatLoaded = () => { return document.querySelector('#chatHistory div[data-pinnedconversationturnid]'); };
-
-        observerOptions = {
-            childList : true
-        };
+        observerOptions = { childList : true };
 
         window._sc_mutationHandler = (mutation) => {
             mutation.addedNodes.forEach(e => {
@@ -221,6 +277,64 @@ async function prepareScript() {
     console.log('Chat loaded.')
     startMainOvservation(mainElement, observerOptions);
     afterMainOvservationStart();
+}
+
+function enbaleResultPatcher() {
+    // TODO: refractor all code.
+    if (window.location.host !== "chat.openai.com") {
+        return;
+    }
+    const oldJSONParse = JSON.parse;
+    JSON.parse = function _parse() {
+        if (typeof arguments[0] == "object") {
+            return arguments[0];
+        }
+        const res = oldJSONParse.apply(this, arguments);
+        if (res.hasOwnProperty('message')){
+            const message = res.message;
+            if (message.hasOwnProperty('end_turn') && message.end_turn){
+                message.content.parts[0] = getExtraInfoAddedMKContent(message.content.parts[0]);
+            }
+        }
+        return res;
+    };
+
+    const responseHandler = (response, result) => {
+        if (result.hasOwnProperty('mapping') && result.hasOwnProperty('current_node')){
+            Object.keys(result.mapping).forEach((key) => {
+                const mapObj = result.mapping[key];
+                if (mapObj.hasOwnProperty('message')) {
+                    if (mapObj.message.author.role === 'user'){
+                        return;
+                    }
+                    const contentObj = mapObj.message.content;
+                    contentObj.parts[0] = getExtraInfoAddedMKContent(contentObj.parts[0]);
+                }
+            });
+        }
+    }
+    let oldfetch = fetch;
+    function patchedFetch() {
+        return new Promise((resolve, reject) => {
+            oldfetch.apply(this, arguments).then(response => {
+                const oldJson = response.json;
+                response.json = function() {
+                    return new Promise((resolve, reject) => {
+                        oldJson.apply(this, arguments).then(result => {
+                            try{
+                                responseHandler(response, result);
+                            } catch (e) {
+                                console.warn(e);
+                            }
+                            resolve(result);
+                        });
+                    });
+                }
+                resolve(response);
+            });
+        });
+    }
+    window.fetch = patchedFetch;
 }
 
 // After output completed, the attribute of turn element will be changed,
@@ -270,16 +384,6 @@ function startMainOvservation(mainElement, observerOptions) {
     window._sc_mainObserver.observe(mainElement, observerOptions);
 }
 
-async function addScript(url) {
-    const scriptElement = document.createElement('script');
-    const headElement = document.getElementsByTagName('head')[0] || document.documentElement;
-    if (!headElement.appendChild(scriptElement)) {
-        // Prevent appendChild overwritten problem.
-        headElement.append(scriptElement);
-    }
-    scriptElement.src = url;
-}
-
 async function waitMathJaxLoaded() {
     while (!MathJax.hasOwnProperty('typeset')) {
         if (window._sc_ChatLatex.loadCount > 20000 / 200) {
@@ -288,29 +392,6 @@ async function waitMathJaxLoaded() {
         await new Promise((x) => setTimeout(x, 500));
         window._sc_ChatLatex.loadCount += 1;
     }
-}
-
-function showTipsElement() {
-    const tipsElement = window._sc_ChatLatex.tipsElement;
-    tipsElement.style.position = "fixed";
-    tipsElement.style.right = "10px";
-    tipsElement.style.top = "10px";
-    tipsElement.style.background = '#333';
-    tipsElement.style.color = '#fff';
-    tipsElement.style.zIndex = '999999';
-    var tipContainer = document.body.querySelector('header');
-    if (!tipContainer) {
-        tipContainer = document.body;
-    }
-    tipContainer.appendChild(tipsElement);
-}
-
-function setTipsElementText(text, errorRaise=false) {
-    window._sc_ChatLatex.tipsElement.innerHTML = text;
-    if (errorRaise) {
-        throw text;
-    }
-    console.log(text);
 }
 
 function hideTipsElement(timeout=3) {
@@ -341,6 +422,7 @@ async function loadMathJax() {
         }
     };
 
+    enbaleResultPatcher();
     await loadMathJax();
     await prepareScript();
 })();
