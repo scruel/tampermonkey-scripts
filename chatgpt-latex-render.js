@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
-// @version            0.6.0
+// @version            0.6.1
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -23,8 +23,8 @@ const MARKDOWN_RERENDER_MARK = 'sc_mktag';
 const MARKDOWN_RERENDER_LEN = 'sc_mklen';
 const MARKDOWN_RERENDER_REGEX = new RegExp('<!--' + MARKDOWN_RERENDER_MARK + ',(.*?)-->', 'g');
 
-const MARKDOWN_SYMBOL_UNDERLINE = '@SCUEDL@'
-const MARKDOWN_SYMBOL_ASTERISK = '@SCAESK@'
+const MARKDOWN_SYMBOL_UNDERLINE = 'XXXSCUEDLXXX'
+const MARKDOWN_SYMBOL_ASTERISK = 'XXXSCAESKXXX'
 
 function queryAddNoParsed(query) {
     return query + ":not([" + _parsed_mark + "])";
