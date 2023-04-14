@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
-// @version            0.6.1
+// @version            0.6.2
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -20,34 +20,12 @@
 
 const _parsed_mark = '_sc_parsed';
 const MARKDOWN_RERENDER_MARK = 'sc_mktag';
-const MARKDOWN_RERENDER_LEN = 'sc_mklen';
-const MARKDOWN_RERENDER_REGEX = new RegExp('<!--' + MARKDOWN_RERENDER_MARK + ',(.*?)-->', 'g');
 
 const MARKDOWN_SYMBOL_UNDERLINE = 'XXXSCUEDLXXX'
 const MARKDOWN_SYMBOL_ASTERISK = 'XXXSCAESKXXX'
 
 function queryAddNoParsed(query) {
     return query + ":not([" + _parsed_mark + "])";
-}
-
-function getAllCommentNodes(ele) {
-    var comments = [];
-    var iterator = document.createNodeIterator(ele, NodeFilter.SHOW_COMMENT, () => NodeFilter.FILTER_ACCEPT, false);
-    var curNode;
-    while (curNode = iterator.nextNode()) {
-        comments.push(curNode);
-    }
-    return comments;
-}
-
-async function addScript(url) {
-    const scriptElement = document.createElement('script');
-    const headElement = document.getElementsByTagName('head')[0] || document.documentElement;
-    if (!headElement.appendChild(scriptElement)) {
-        // Prevent appendChild overwritten problem.
-        headElement.append(scriptElement);
-    }
-    scriptElement.src = url;
 }
 
 function showTipsElement() {
@@ -73,22 +51,49 @@ function setTipsElementText(text, errorRaise=false) {
     console.log(text);
 }
 
+async function addScript(url) {
+    const scriptElement = document.createElement('script');
+    const headElement = document.getElementsByTagName('head')[0] || document.documentElement;
+    if (!headElement.appendChild(scriptElement)) {
+        // Prevent appendChild overwritten problem.
+        headElement.append(scriptElement);
+    }
+    scriptElement.src = url;
+}
+
+function traverseDOM(element, callback, onlySingle=true) {
+    if (!onlySingle || !element.hasChildNodes()) {
+        callback(element);
+    }
+    element = element.firstChild;
+    while (element) {
+        traverseDOM(element, callback, onlySingle);
+        element = element.nextSibling;
+    }
+}
+
 function getExtraInfoAddedMKContent(content) {
-    content = content.replaceAll(/(\*+)/g, MARKDOWN_SYMBOL_ASTERISK + '$1');
-    content = content.replaceAll(/(_+)/g, MARKDOWN_SYMBOL_UNDERLINE + '$1');
-    // TODO: combined symbol
+    // Ensure that the whitespace before and after the same
+    content = content.replaceAll(/( *\*+ *)/g, MARKDOWN_SYMBOL_ASTERISK + '$1');
+    content = content.replaceAll(/( *_+ *)/g, MARKDOWN_SYMBOL_UNDERLINE + '$1');
+    // Ensure render for single line
+    content = content.replaceAll(new RegExp(`^${MARKDOWN_SYMBOL_ASTERISK}(\\*+)`, 'gm'), `${MARKDOWN_SYMBOL_ASTERISK} $1`);
+    content = content.replaceAll(new RegExp(`^${MARKDOWN_SYMBOL_UNDERLINE}(_+)`, 'gm'), `${MARKDOWN_SYMBOL_UNDERLINE} $1`);
     return content;
 }
 
-function getExtraInfoRemovedMKContent(content) {
-    content = content.replaceAll(MARKDOWN_SYMBOL_UNDERLINE, '');
-    content = content.replaceAll(MARKDOWN_SYMBOL_ASTERISK, '');
-    return content;
+function removeMKExtraInfo(ele) {
+    traverseDOM(ele, function(e) {
+        if (e.textContent){
+            e.textContent = e.textContent.replaceAll(MARKDOWN_SYMBOL_UNDERLINE, '');
+            e.textContent = e.textContent.replaceAll(MARKDOWN_SYMBOL_ASTERISK, '');
+        }
+    });
 }
 
 function getLastMKSymbol(ele, defaultSymbol) {
     if (!ele) { return defaultSymbol; }
-    const content = ele.textContent;
+    const content = ele.textContent.trim();
     if (content.endsWith(MARKDOWN_SYMBOL_UNDERLINE)) { return '_'; }
     if (content.endsWith(MARKDOWN_SYMBOL_ASTERISK)) { return '*'; }
     return defaultSymbol;
@@ -103,12 +108,12 @@ function restoreMarkdown(msgEle, tagName, defaultSymbol) {
         const wrapperSymbol = getLastMKSymbol(e.previousSibling, defaultSymbol);
         fn.textContent = wrapperSymbol + fn.textContent;
         ln.textContent = ln.textContent + wrapperSymbol;
-        restoredNodes.prepend(document.createComment(MARKDOWN_RERENDER_MARK + ",<" + tagName + " " + MARKDOWN_RERENDER_LEN + "=" + wrapperSymbol.length + ">"));
-        restoredNodes.append(document.createComment(MARKDOWN_RERENDER_MARK + ",</" + tagName + ">"));
+        restoredNodes.prepend(document.createComment(MARKDOWN_RERENDER_MARK + "|0|" + tagName + "|" + wrapperSymbol.length));
+        restoredNodes.append(document.createComment(MARKDOWN_RERENDER_MARK + "|1|" + tagName));
         e.parentElement.insertBefore(restoredNodes, e);
         e.parentNode.removeChild(e);
     });
-    msgEle.innerHTML = getExtraInfoRemovedMKContent(msgEle.innerHTML);
+    removeMKExtraInfo(msgEle);
 }
 
 function restoreAllMarkdown(msgEle) {
@@ -116,22 +121,45 @@ function restoreAllMarkdown(msgEle) {
 }
 
 function rerenderAllMarkdown(msgEle) {
-    const mjxEles = msgEle.querySelectorAll('mjx-container');
-    msgEle.innerHTML = msgEle.innerHTML.replaceAll(MARKDOWN_RERENDER_REGEX, '$1');
-    const eles = msgEle.querySelectorAll('*[' + MARKDOWN_RERENDER_LEN + ']');
-    eles.forEach(e => {
-        const wrapperLen = parseInt(e.getAttribute(MARKDOWN_RERENDER_LEN))
-        e.childNodes[0].textContent = e.childNodes[0].textContent.substring(wrapperLen);
-        const lastNodeContent = e.childNodes[e.childNodes.length - 1].textContent
-        e.childNodes[e.childNodes.length - 1].textContent = lastNodeContent.substring(0, lastNodeContent.length - wrapperLen);
+    // restore HTML from restored markdown comment info
+    const startComments = [];
+    traverseDOM(msgEle, function(n) {
+        if (n.nodeType !== 8){
+            return;
+        }
+        const text = n.textContent.trim();
+        if (!text.startsWith(MARKDOWN_RERENDER_MARK)) {
+            return;
+        }
+        const tokens = text.split('|');
+        if (tokens[1] === '0'){
+            startComments.push(n);
+        }
     });
-    // Restore mjx elements which have listeners
-    const newMjxEles = msgEle.querySelectorAll('mjx-container');
-    for (let i = 0; i < newMjxEles.length; ++i) {
-        const e = newMjxEles[i];
-        e.parentElement.insertBefore(mjxEles[i], e);
-        e.parentNode.removeChild(e);
-    };
+    // Reverse to prevent nested elements
+    startComments.reverse().forEach((n) => {
+        const tokens = n.textContent.trim().split('|');
+        const tagName = tokens[2];
+        const tagRepLen = tokens[3];
+        const tagEle = document.createElement(tagName);
+        n.parentElement.insertBefore(tagEle, n);
+        n.parentNode.removeChild(n);
+        let subEle = tagEle.nextSibling;
+        while (subEle){
+            if (subEle.nodeType == 8) {
+                const text = subEle.textContent.trim();
+                if (text.startsWith(MARKDOWN_RERENDER_MARK) && text.split('|')[1] === '1') {
+                    subEle.parentNode.removeChild(subEle);
+                    break;
+                }
+            }
+            tagEle.appendChild(subEle);
+            subEle = tagEle.nextSibling;
+        }
+        // Remove previously added markdown symbols.
+        tagEle.firstChild.textContent = tagEle.firstChild.textContent.substring(tagRepLen);
+        tagEle.lastChild.textContent = tagEle.lastChild.textContent.substring(0, tagEle.lastChild.textContent.length - tagRepLen);
+    });
 }
 
 async function prepareScript() {
