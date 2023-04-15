@@ -18,14 +18,14 @@
 
 'use strict';
 
-const _parsed_mark = '_sc_parsed';
+const PARSED_MARK = '_sc_parsed';
 const MARKDOWN_RERENDER_MARK = 'sc_mktag';
 
 const MARKDOWN_SYMBOL_UNDERLINE = 'XXXSCUEDLXXX'
 const MARKDOWN_SYMBOL_ASTERISK = 'XXXSCAESKXXX'
 
 function queryAddNoParsed(query) {
-    return query + ":not([" + _parsed_mark + "])";
+    return query + ":not([" + PARSED_MARK + "])";
 }
 
 function showTipsElement() {
