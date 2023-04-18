@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
-// @version            0.6.2
+// @version            0.6.3
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -226,11 +226,33 @@ async function prepareScript() {
     }
     else if (window.location.host === "chat.openai.com") {
         window._sc_getObserveElement = () => {
-            return document.querySelector("main form textarea+button");
+            return document.querySelector("main > div > div > div");
         }
         window._sc_chatLoaded = () => { return document.querySelector('main div.text-sm>svg.animate-spin') === null; };
 
-        observerOptions = { childList : true };
+        observerOptions = {
+            attributes: true,
+            childList: true,
+            subtree: true,
+        };
+
+        window._sc_mutationHandler = (mutation) => {
+            if (mutation.removedNodes.length) {
+                return;
+            }
+            const target = mutation.target;
+            if (!target || target.tagName !== 'DIV') {
+                return;
+            }
+            const buttons = target.querySelectorAll('button');
+            if (buttons.length !== 2 || !target.classList.contains('visible')){
+                return;
+            }
+            if (mutation.type === 'attributes' ||
+                (mutation.addedNodes.length && mutation.addedNodes[0] == buttons[0])) {
+                window._sc_typeset();
+            }
+        };
 
         afterMainOvservationStart = () => {
             window._sc_typeset();
@@ -243,14 +265,6 @@ async function prepareScript() {
                     }
                 });
             }).observe(document.querySelector('#__next'), {childList: true});
-        };
-
-        window._sc_mutationHandler = (mutation) => {
-            mutation.addedNodes.forEach(e => {
-                if (e.tagName === "svg") {
-                    window._sc_typeset();
-                }
-            })
         };
 
         window._sc_getMsgEles = () => {
@@ -284,7 +298,7 @@ async function prepareScript() {
         window._sc_getObserveElement = () => {
             return document.querySelector('#chatHistory');
         };
-        window._sc_chatLoaded = () => { return document.querySelector('#chatHistory div[data-pinnedconversationturnid]'); };
+        window._sc_chatLoaded = () => { return !!document.querySelector('#chatHistory div[data-pinnedconversationturnid]'); };
         observerOptions = { childList : true };
 
         window._sc_mutationHandler = (mutation) => {
