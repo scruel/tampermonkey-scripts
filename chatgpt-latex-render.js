@@ -170,7 +170,7 @@ async function prepareScript() {
             const msgEles = window._sc_getMsgEles();
             msgEles.forEach(msgEle => {
                 restoreAllMarkdown(msgEle);
-                msgEle.setAttribute(_parsed_mark,'');
+                msgEle.setAttribute(PARSED_MARK, '');
 
                 window._sc_beforeTypesetMsgEle(msgEle);
                 MathJax.typesetPromise([msgEle]);
