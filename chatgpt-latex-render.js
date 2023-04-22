@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
-// @version            0.6.4
+// @version            0.6.5
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -245,11 +245,11 @@ async function prepareScript() {
                 return;
             }
             const buttons = target.querySelectorAll('button');
-            if (buttons.length !== 2 || !target.classList.contains('visible')){
+            if (buttons.length !== 3 || !target.classList.contains('visible')){
                 return;
             }
             if (mutation.type === 'attributes' ||
-                (mutation.addedNodes.length && mutation.addedNodes[0] == buttons[0])) {
+                (mutation.addedNodes.length && mutation.addedNodes[0] == buttons[1])) {
                 window._sc_typeset();
             }
         };
