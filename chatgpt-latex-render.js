@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name               ChatGPT LaTeX Auto Render (OpenAI, new bing, you, etc.)
-// @version            0.6.8
+// @version            0.6.9
 // @author             Scruel Tao
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
@@ -315,26 +315,23 @@ async function prepareScript() {
         afterMainOvservationStart = () => {
             window._sc_typeset();
             // Handle conversation switch
-            new MutationObserver((mutationList) => {
-                mutationList.forEach(async (mutation) => {
+            new MutationObserver(async (mutationList) => {
+                for (var mutation of mutationList) {
                     if (!mutation.addedNodes.length) {
-                        return;
+                        continue;
                     }
                     const addedNode = mutation.addedNodes[0];
-                    const mainParent = addedNode.childElementCount === 1 ? addedNode : addedNode.lastChild;
-                    if (!mainParent) {
-                        return;
-                    }
-                    const mainNode = mainParent.firstChild;
-                    if (!mainNode || mainNode.tagName !== 'MAIN'){
-                        return;
+                    const mainNode = addedNode.querySelector('main');
+                    if (!mainNode) {
+                        continue;
                     }
                     startMainOvservation(
                         await getMainObserveElement(true),
                         observerOptions
                     );
                     window._sc_typeset();
-                });
+                    break;
+                };
             }).observe(document.querySelector("#__next"), { childList: true, subtree: true});
         };
 
