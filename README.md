@@ -1,6 +1,6 @@
 # tampermonkey-scripts
 
-Only work with browser plugin [Tampermonkey](https://www.tampermonkey.net/).
+Only tested on browser plugin [Tampermonkey](https://www.tampermonkey.net/).
 
 ## chatgpt-latex-render.js
 
