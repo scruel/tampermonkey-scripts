@@ -4,6 +4,7 @@
 // @version      0.2
 // @description  Add auto scroll to bottom funtion for jupyter notebook pages.
 // @author       Scruel Tao
+// @homepage     https://github.com/scruel/tampermonkey-scripts/blob/main/jupyter-notebook-auto-scroll.js
 // @match        http*://*/notebook*/*
 // @grant        none
 // ==/UserScript==
@@ -15,7 +16,7 @@
     var defalutEnabled = true;
 
     var scrollEleIndex = 1;
-    // To store the last scroll top attr of element.
+    // To store the last scroll height attr of element.
     // If disable, set to -1.
     var scrollEleIndexMap = new Map();
 
