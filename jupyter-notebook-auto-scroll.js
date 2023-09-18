@@ -2,7 +2,7 @@
 // @name         jupyter notebook auto scroll
 // @namespace    http://tampermonkey.net/
 // @version      0.2
-// @description  Add auto scroll to bottom funtion for jupyter notebook pages.
+// @description  Add auto scroll to bottom feature for jupyter notebook pages.
 // @author       Scruel Tao
 // @homepage     https://github.com/scruel/tampermonkey-scripts/blob/main/jupyter-notebook-auto-scroll.js
 // @match        http*://*/notebook*/*
