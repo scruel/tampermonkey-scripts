@@ -16,6 +16,6 @@ Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, you, new bing, etc.).
 
 ## jupyter-notebook-auto-scroll.js
 
-Add auto scroll to bottom funtion for jupyter notebook pages.
+Add auto scroll to bottom feature for jupyter notebook pages.
 
 [Install (GreasyFork)](https://greasyfork.org/zh-CN/scripts/418158)
