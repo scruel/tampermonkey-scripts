@@ -5,13 +5,13 @@
 // @homepage           https://github.com/scruel/tampermonkey-scripts
 // @description        Auto typeset LaTeX math formulas on ChatGPT pages (OpenAI, new bing, you, etc.).
 // @description:zh-CN  自动渲染 ChatGPT 页面 (OpenAI, new bing, you 等) 上的 LaTeX 数学公式。
-// @match              https://chat.openai.com/*
+// @match              https://chatgpt.com/*
 // @match              https://platform.openai.com/playground/*
 // @match              https://www.bing.com/search?*
 // @match              https://you.com/search?*&tbm=youchat*
 // @match              https://www.you.com/search?*&tbm=youchat*
 // @namespace          http://tampermonkey.net/
-// @icon               https://chat.openai.com/favicon.ico
+// @icon               https://chatgpt.com/favicon.ico
 // @grant              none
 // @noframes
 // ==/UserScript==
